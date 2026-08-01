@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Keep data folders, ignore dataset contents
+/data/raw/*
+/data/processed/*
+!/data/raw/.gitkeep
+!/data/processed/.gitkeep
+
+# Common processed artifact formats
+/data/processed/**/*.csv
+/data/processed/**/*.parquet
+/data/processed/**/*.feather
