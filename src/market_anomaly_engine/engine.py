@@ -12,16 +12,9 @@ class MarketAnomalyEngine:
 
     @staticmethod
     def _expanding_percentile_rank(series: pd.Series) -> pd.Series:
-        ranks = np.full(len(series), np.nan, dtype=float)
-        seen_values: list[float] = []
-
-        for index, value in enumerate(series.tolist()):
-            if pd.isna(value):
-                continue
-            seen_values.append(float(value))
-            ranks[index] = pd.Series(seen_values).rank(pct=True).iloc[-1]
-
-        return pd.Series(ranks, index=series.index)
+        ranks = series.expanding().rank(pct=True)
+        ranks[series.isna()] = np.nan
+        return ranks
 
     def analyze_ticker_data(self, df: pd.DataFrame) -> pd.DataFrame:
         required = {"Date", "Adj_Close", "Volume"}

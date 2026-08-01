@@ -38,6 +38,31 @@ def test_validate_fusion_record_requires_priority_language():
     )
 
 
+def test_validate_fusion_record_rejects_unqualified_market_claims():
+    try:
+        validate_fusion_record(
+            {
+                "internal_entity_id": "ent_1",
+                "entity_name": "Example Ltd",
+                "known_identifiers": {},
+                "identifier_confidence": "manual-matched",
+                "crosswalk_record_id": "cw_1",
+                "track": "track_1_case_study",
+                "osint_signals": {},
+                "market_signals": {
+                    "wash_trading_detected": True,
+                    "circular_trade_partners": ["A", "B"],
+                },
+                "fused_priority_ranking": "HIGH",
+            }
+        )
+    except ValueError as exc:
+        assert "wash_trading_detected" in str(exc)
+        assert "circular_trade_partners" in str(exc)
+    else:
+        raise AssertionError("Expected validate_fusion_record to reject unsupported market signals")
+
+
 def test_scenario_discovery_finds_separate_scenario_dirs(tmp_path: Path):
     scenario_a = tmp_path / "scenario_a"
     scenario_b = tmp_path / "scenario_b"

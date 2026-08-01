@@ -23,6 +23,12 @@ def validate_screening_language(record: dict[str, Any]) -> None:
     if "fused_risk_category" in record:
         raise ValueError("Use fused_priority_ranking, not fused_risk_category")
 
+    market_signals = record.get("market_signals", {}) or {}
+    forbidden = {"wash_trading_detected", "circular_trade_partners"}
+    present = forbidden & set(market_signals)
+    if present:
+        raise ValueError(f"market_signals contains claims Mode A cannot support: {sorted(present)}")
+
 
 def validate_fusion_record(record: dict[str, Any]) -> None:
     required = {

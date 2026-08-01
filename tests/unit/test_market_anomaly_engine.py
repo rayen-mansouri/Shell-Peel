@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 import numpy as np
 import pandas as pd
 
@@ -57,3 +59,16 @@ def test_short_series_keeps_warmup_nans_without_errors():
     assert scored["Volat_ZScore_Robust"].isna().all()
     assert scored["Vol_Pct_Rank"].isna().all()
     assert scored["Volat_Pct_Rank"].isna().all()
+
+
+def test_expanding_percentile_rank_runs_in_reasonable_time():
+    engine = MarketAnomalyEngine(window=20)
+    frame = _make_price_frame(5000, seed=456)
+
+    start = time.perf_counter()
+    scored = engine.analyze_ticker_data(frame)
+    elapsed = time.perf_counter() - start
+
+    assert elapsed < 3.0
+    assert scored["Vol_Pct_Rank"].notna().any()
+    assert scored["Volat_Pct_Rank"].notna().any()
