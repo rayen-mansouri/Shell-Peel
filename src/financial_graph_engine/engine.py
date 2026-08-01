@@ -6,6 +6,8 @@ import warnings
 import networkx as nx
 import pandas as pd
 
+from common.logging_utils import get_logger
+
 
 class FinancialGraphEngine:
     def __init__(
@@ -23,6 +25,7 @@ class FinancialGraphEngine:
         self.min_shared_nodes_to_merge = min_shared_nodes_to_merge
         self.max_edges_before_warning = max_edges_before_warning
         self._last_run_stats: dict[str, object] = {}
+        self.logger = get_logger(self.__class__.__name__)
 
     def build_graph_from_transactions(self, transactions: pd.DataFrame):
         required = {"sender_id", "receiver_id", "amount", "timestamp"}
@@ -37,6 +40,11 @@ class FinancialGraphEngine:
         tx = tx.dropna(subset=["timestamp", "sender_id", "receiver_id", "amount"])
         n_dropped = n_before - len(tx)
         if n_dropped > 0:
+            self.logger.warning(
+                "Dropped %s of %s transaction rows before graph construction",
+                n_dropped,
+                n_before,
+            )
             warnings.warn(
                 f"Dropped {n_dropped} of {n_before} transaction rows "
                 f"({100 * n_dropped / n_before:.2f}%) with missing/unparseable "

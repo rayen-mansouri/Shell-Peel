@@ -24,11 +24,13 @@ class MarketAnomalyEngine:
         vol_med = log_vol.rolling(self.window).median()
         vol_mad = (log_vol - vol_med).abs().rolling(self.window).median()
         out["Vol_ZScore_Robust"] = (log_vol - vol_med) / (1.4826 * vol_mad + 1e-8)
+        out["Vol_Pct_Rank"] = out["Vol_ZScore_Robust"].abs().rank(pct=True)
 
         out["Returns"] = np.log(out["Adj_Close"] / out["Adj_Close"].shift(1))
         ret_med = out["Returns"].rolling(self.window).median()
         ret_mad = (out["Returns"] - ret_med).abs().rolling(self.window).median()
         out["Volat_ZScore_Robust"] = (out["Returns"] - ret_med) / (1.4826 * ret_mad + 1e-8)
+        out["Volat_Pct_Rank"] = out["Volat_ZScore_Robust"].abs().rank(pct=True)
 
         # Gate volume and returns anomalies independently on their own liquidity axis.
         illiquid_volume = vol_mad < self.min_liquidity
