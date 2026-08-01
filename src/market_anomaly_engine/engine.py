@@ -10,6 +10,19 @@ class MarketAnomalyEngine:
         self.z_threshold = z_threshold
         self.min_liquidity = min_liquidity
 
+    @staticmethod
+    def _expanding_percentile_rank(series: pd.Series) -> pd.Series:
+        ranks = np.full(len(series), np.nan, dtype=float)
+        seen_values: list[float] = []
+
+        for index, value in enumerate(series.tolist()):
+            if pd.isna(value):
+                continue
+            seen_values.append(float(value))
+            ranks[index] = pd.Series(seen_values).rank(pct=True).iloc[-1]
+
+        return pd.Series(ranks, index=series.index)
+
     def analyze_ticker_data(self, df: pd.DataFrame) -> pd.DataFrame:
         required = {"Date", "Adj_Close", "Volume"}
         missing = required - set(df.columns)
@@ -24,13 +37,13 @@ class MarketAnomalyEngine:
         vol_med = log_vol.rolling(self.window).median()
         vol_mad = (log_vol - vol_med).abs().rolling(self.window).median()
         out["Vol_ZScore_Robust"] = (log_vol - vol_med) / (1.4826 * vol_mad + 1e-8)
-        out["Vol_Pct_Rank"] = out["Vol_ZScore_Robust"].abs().rank(pct=True)
+        out["Vol_Pct_Rank"] = self._expanding_percentile_rank(out["Vol_ZScore_Robust"].abs())
 
         out["Returns"] = np.log(out["Adj_Close"] / out["Adj_Close"].shift(1))
         ret_med = out["Returns"].rolling(self.window).median()
         ret_mad = (out["Returns"] - ret_med).abs().rolling(self.window).median()
         out["Volat_ZScore_Robust"] = (out["Returns"] - ret_med) / (1.4826 * ret_mad + 1e-8)
-        out["Volat_Pct_Rank"] = out["Volat_ZScore_Robust"].abs().rank(pct=True)
+        out["Volat_Pct_Rank"] = self._expanding_percentile_rank(out["Volat_ZScore_Robust"].abs())
 
         # Gate volume and returns anomalies independently on their own liquidity axis.
         illiquid_volume = vol_mad < self.min_liquidity
