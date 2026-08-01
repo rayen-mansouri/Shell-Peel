@@ -67,6 +67,33 @@ class FinancialGraphEngine:
             )
 
     def detect_circular_routing(self, max_cycle_length: int = 4) -> list[list[str]]:
+        candidate_rings, truncated = self._collect_temporal_candidate_rings(max_cycle_length=max_cycle_length)
+
+        if truncated:
+            warnings.warn(
+                f"detect_circular_routing hit max_candidates={self.max_candidates}. "
+                "Results are truncated and biased by cycle enumeration order.",
+                stacklevel=2,
+            )
+
+        return self._dedupe_into_rings(candidate_rings)
+
+    def detect_temporal_rings(self, max_cycle_length: int = 4) -> list[list[tuple[str, str, object, float]]]:
+        candidate_rings, truncated = self._collect_temporal_candidate_rings(max_cycle_length=max_cycle_length)
+
+        if truncated:
+            warnings.warn(
+                f"detect_temporal_rings hit max_candidates={self.max_candidates}. "
+                "Results are truncated and biased by cycle enumeration order.",
+                stacklevel=2,
+            )
+
+        return candidate_rings
+
+    def _collect_temporal_candidate_rings(
+        self,
+        max_cycle_length: int = 4,
+    ) -> tuple[list[list[tuple[str, str, object, float]]], bool]:
         sccs = nx.strongly_connected_components(self.graph)
         nontrivial_scc_nodes = {n for scc in sccs if len(scc) > 1 for n in scc}
         scc_filtered = self.graph.subgraph(nontrivial_scc_nodes)
@@ -96,21 +123,18 @@ class FinancialGraphEngine:
         for cycle in to_process:
             if len(cycle) < 2:
                 continue
-            hop_edges = [(cycle[i], cycle[(i + 1) % len(cycle)]) for i in range(len(cycle))]
-            chosen = self._find_valid_temporal_path(hop_edges)
+            chosen = None
+            for offset in range(len(cycle)):
+                rotated_cycle = cycle[offset:] + cycle[:offset]
+                hop_edges = [(rotated_cycle[i], rotated_cycle[(i + 1) % len(rotated_cycle)]) for i in range(len(rotated_cycle))]
+                chosen = self._find_valid_temporal_path(hop_edges)
+                if chosen is not None:
+                    break
             if chosen is not None:
                 candidate_rings.append(chosen)
 
         self._last_run_stats["accepted_temporal_rings"] = len(candidate_rings)
-
-        if truncated:
-            warnings.warn(
-                f"detect_circular_routing hit max_candidates={self.max_candidates}. "
-                "Results are truncated and biased by cycle enumeration order.",
-                stacklevel=2,
-            )
-
-        return self._dedupe_into_rings(candidate_rings)
+        return candidate_rings, truncated
 
     def _find_valid_temporal_path(self, hop_edges, start_after=None):
         if not hop_edges:
