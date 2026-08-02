@@ -23,7 +23,7 @@ def test_bootstrap_ci_returns_finite_interval():
     assert lo <= hi
 
 
-def test_sample_topology_matched_null_rings_preserves_sizes():
+def test_sample_topology_matched_null_rings_uses_real_cycles():
     graph = nx.MultiDiGraph()
     graph.add_edge("A", "B")
     graph.add_edge("B", "C")
@@ -31,7 +31,11 @@ def test_sample_topology_matched_null_rings_preserves_sizes():
     graph.add_edge("A", "D")
 
     null_rings = sample_topology_matched_null_rings(graph, [["A", "B", "C"], ["A", "D"]], seed=7)
-    assert [len(ring) for ring in null_rings] == [3, 2]
+    assert len(null_rings) == 1
+    assert len(null_rings[0]) == 3
+
+    actual_cycles = {frozenset(cycle) for cycle in nx.simple_cycles(nx.DiGraph(graph), length_bound=4)}
+    assert frozenset(null_rings[0]) in actual_cycles
 
 
 def test_performance_profile_row_uses_engine_statistics():

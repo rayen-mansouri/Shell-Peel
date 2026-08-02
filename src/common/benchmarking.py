@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+import itertools
 from typing import Any
 
 import networkx as nx
@@ -121,21 +122,26 @@ def performance_profile_row(
 def sample_topology_matched_null_rings(
     graph: nx.MultiDiGraph,
     truth_rings: Sequence[Any],
+    max_cycle_length: int = 4,
+    max_pool_size: int = 50_000,
     seed: int = 42,
 ) -> list[list[str]]:
     rng = np.random.default_rng(seed)
-    nodes = np.array(list(graph.nodes), dtype=object)
-    if len(nodes) == 0:
-        return []
+    simple_topology = nx.DiGraph(graph)
+    cycle_pool = list(itertools.islice(nx.simple_cycles(simple_topology, length_bound=max_cycle_length), max_pool_size))
+    pool_by_size: dict[int, list[list[str]]] = {}
 
-    weights = np.array([graph.degree(node) + 1 for node in nodes], dtype=float)
-    weights = weights / weights.sum()
+    for cycle in cycle_pool:
+        pool_by_size.setdefault(len(cycle), []).append(cycle)
 
     null_rings: list[list[str]] = []
     for ring in truth_rings:
         ring_size = max(len(_normalize_ring(ring)), 2)
-        ring_size = min(ring_size, len(nodes))
-        sampled = rng.choice(nodes, size=ring_size, replace=False, p=weights)
-        null_rings.append([str(node) for node in sampled])
+        candidates = pool_by_size.get(ring_size, [])
+        if not candidates:
+            continue
+
+        chosen = candidates[rng.integers(0, len(candidates))]
+        null_rings.append([str(node) for node in chosen])
 
     return null_rings
