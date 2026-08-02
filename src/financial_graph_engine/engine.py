@@ -161,6 +161,33 @@ class FinancialGraphEngine:
         return None
 
     def _dedupe_into_rings(self, candidate_rings: list) -> list[list[str]]:
+        """Merge near-duplicate candidate rings into deduplicated laundering rings.
+
+        Two candidate rings are considered the same underlying ring if they share
+        at least ``min_shared_nodes_to_merge`` account nodes.  Merging is
+        performed via ``nx.connected_components`` on the pairwise-edge graph,
+        which means **transitive bridging is intentional**: if ring1 and ring2
+        share enough hub accounts to meet the threshold, and ring2 and ring3
+        share enough *different* hub accounts to meet the threshold, all three
+        collapse into one merged ring even though ring1 and ring3 have no direct
+        pairwise overlap.
+
+        **Design rationale:** In an AML context, shared hub accounts are the
+        meaningful signal.  If ring1/ring2 co-route through hubs H1/H2 and
+        ring2/ring3 co-route through hubs K1/K2, the bridging ring2 constitutes
+        evidence that all three cycles belong to one larger laundering network
+        routing through common infrastructure.  Collapsing them avoids
+        fragmenting what is likely one coordinated operation into multiple
+        separate alerts.
+
+        **Consequence to be aware of:** genuinely *distinct* rings that happen to
+        share a common intermediary (e.g. a widely-used correspondent bank) could
+        also be collapsed.  If ``min_shared_nodes_to_merge`` is set too low this
+        can produce spuriously large merged rings.  Tune the threshold and
+        cross-check against the topology-matched null baseline to detect collapse
+        artefacts.
+        """
+
         ring_graph = nx.Graph()
         node_sets = []
 

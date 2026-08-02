@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from pathlib import Path
 
 import pandas as pd
@@ -61,6 +63,36 @@ def test_validate_fusion_record_rejects_unqualified_market_claims():
         assert "circular_trade_partners" in str(exc)
     else:
         raise AssertionError("Expected validate_fusion_record to reject unsupported market signals")
+
+
+_BASE_FUSION_RECORD: dict = {
+    "internal_entity_id": "ent_1",
+    "entity_name": "Example Ltd",
+    "known_identifiers": {},
+    "identifier_confidence": "manual-matched",
+    "crosswalk_record_id": "cw_1",
+    "track": "track_1_case_study",
+    "osint_signals": {},
+    "market_signals": {},
+    "fused_priority_ranking": "HIGH",
+}
+
+
+@pytest.mark.parametrize(
+    "bad_record",
+    [
+        # forbidden key nested inside market_signals
+        {**_BASE_FUSION_RECORD, "market_signals": {"raw_features": {"wash_trading_detected": True}}},
+        # forbidden key relocated to osint_signals
+        {**_BASE_FUSION_RECORD, "osint_signals": {"wash_trading_detected": True}},
+    ],
+    ids=["nested_in_market_signals", "relocated_to_osint_signals"],
+)
+def test_validate_fusion_record_rejects_nested_and_relocated_market_claims(bad_record):
+    """Forbidden Mode A capability terms must be rejected wherever they appear
+    inside market_signals or osint_signals, not only at the top level."""
+    with pytest.raises(ValueError):
+        validate_fusion_record(bad_record)
 
 
 def test_scenario_discovery_finds_separate_scenario_dirs(tmp_path: Path):
