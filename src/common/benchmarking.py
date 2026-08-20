@@ -129,10 +129,14 @@ def sample_topology_matched_null_rings(
     rng = np.random.default_rng(seed)
     simple_topology = nx.DiGraph(graph)
     cycle_pool = list(itertools.islice(nx.simple_cycles(simple_topology, length_bound=max_cycle_length), max_pool_size))
+    truth_norm = {_normalize_ring(ring) for ring in truth_rings if _normalize_ring(ring)}
     pool_by_size: dict[int, list[list[str]]] = {}
 
     for cycle in cycle_pool:
-        pool_by_size.setdefault(len(cycle), []).append(cycle)
+        norm_cycle = _normalize_ring(cycle)
+        if norm_cycle in truth_norm:
+            continue
+        pool_by_size.setdefault(len(norm_cycle), []).append(cycle)
 
     null_rings: list[list[str]] = []
     for ring in truth_rings:

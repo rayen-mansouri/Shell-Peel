@@ -209,6 +209,7 @@ class FinancialGraphEngine:
                 all_nodes |= node_sets[i]
             merged.append(sorted(all_nodes))
 
+        merged.sort(key=lambda r: (len(r), r))
         return merged
 
 
